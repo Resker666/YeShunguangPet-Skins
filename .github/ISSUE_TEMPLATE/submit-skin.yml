@@ -1,0 +1,58 @@
+name: 投稿皮肤
+description: 分享你制作的桌面角色皮肤
+title: "[皮肤投稿] "
+body:
+  - type: markdown
+    attributes:
+      value: 请先在主程序中导入并预览，再通过「导出皮肤 ZIP」生成投稿文件。
+  - type: input
+    id: character
+    attributes:
+      label: 角色名称与皮肤 ID
+      placeholder: 胡桃 / resker666-hutao
+    validations:
+      required: true
+  - type: input
+    id: author
+    attributes:
+      label: 作者署名
+      description: 可附上希望展示的公开主页链接。
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 皮肤版本与测试使用的主程序版本
+      placeholder: 皮肤 1.0.0，主程序 2.18.0
+    validations:
+      required: true
+  - type: textarea
+    id: download
+    attributes:
+      label: 皮肤 ZIP 与预览
+      description: 粘贴公开下载链接或添加 ZIP 附件，并附上预览图或 GIF。
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: 素材来源与使用范围
+      description: 说明图片来源、角色来源、署名要求，以及是否允许修改和二次分发。
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 动作介绍与已知问题
+      description: 例如包含哪些动作、哪些动作暂缺、建议显示比例。
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 投稿确认
+      options:
+        - label: 我已在主程序中导入并预览这个皮肤。
+          required: true
+        - label: 我已说明素材来源和分发条件，并同意在所述条件下由本仓库收录分发。
+          required: true
+        - label: 投稿包不包含密钥、个人配置、聊天记录、日志或可执行程序。
+          required: true

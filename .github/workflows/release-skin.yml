@@ -1,0 +1,76 @@
+name: Release skin
+
+on:
+  push:
+    tags:
+      - '*-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Check out skin repository
+        uses: actions/checkout@v4
+
+      - name: Resolve skin and version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^([a-z][a-z0-9-]{0,63})-v(\d+\.\d+\.\d+)$') {
+            throw 'Tag must be <skin-id>-v<major.minor.patch>.'
+          }
+          $skinId = $Matches[1]
+          $version = $Matches[2]
+          $folder = Join-Path $PWD "skins/$skinId"
+          $release = Get-Content -LiteralPath (Join-Path $folder 'release.json') -Raw | ConvertFrom-Json
+          $manifest = Get-Content -LiteralPath (Join-Path $folder 'pet.json') -Raw | ConvertFrom-Json
+          if ($release.id -ne $skinId -or $release.version -ne $version -or $manifest.id -ne $skinId) {
+            throw 'Tag, release metadata and skin ID must agree.'
+          }
+          "SKIN_ID=$skinId" >> $env:GITHUB_ENV
+          "SKIN_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Check out pinned app validator
+        uses: actions/checkout@v4
+        with:
+          repository: Resker666/YeShunguangPet
+          ref: 3aca1d8752f8330245758572eccd76c63045d830
+          path: .validator
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate and package skin
+        shell: pwsh
+        run: |
+          $folder = Join-Path $PWD "skins/$env:SKIN_ID"
+          $manifestPath = Join-Path $folder 'pet.json'
+          dotnet run --project .validator/tests/PetTests.csproj --configuration Release -- --validate-skin $manifestPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          $sprite = if ($manifest.spriteSheet) { [string]$manifest.spriteSheet } else { 'spritesheet.png' }
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $zipName = "$env:SKIN_ID-v$env:SKIN_VERSION.zip"
+          $archive = Join-Path $PWD "artifacts/$zipName"
+          Compress-Archive -LiteralPath $manifestPath,(Join-Path $folder $sprite) -DestinationPath $archive
+          dotnet run --project .validator/tests/PetTests.csproj --configuration Release --no-build -- --validate-skin $archive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $digest = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $zipName" | Set-Content -LiteralPath "$archive.sha256.txt" -Encoding ascii
+
+      - name: Publish skin ZIP and checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $notes = Join-Path $PWD "skins/$env:SKIN_ID/README.md"
+          $files = Get-ChildItem artifacts -File | Select-Object -ExpandProperty FullName
+          gh release create $env:RELEASE_TAG $files --verify-tag --title "$env:SKIN_ID v$env:SKIN_VERSION" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
