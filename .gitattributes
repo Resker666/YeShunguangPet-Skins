@@ -1,0 +1,4 @@
+# Preserve imported skin bytes across Windows/Linux checkouts.
+skins/**/pet.json -text
+*.png binary
+*.gif binary
